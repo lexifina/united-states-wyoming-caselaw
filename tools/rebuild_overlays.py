@@ -33,6 +33,9 @@ B = importlib.util.module_from_spec(_b)
 _b.loader.exec_module(B)
 LAW = Path.home() / 'Documents' / 'caselaw-law-mirrors' / 'united-states-law.git'
 PREFILTER = r'U ?\.? ?S ?\.? ?C|United States Code|[Tt]itle [0-9]{1,2}'
+CORRECTION_NOTE = ('each decision is added by one Kind: court commit; a Kind: correction commit (Corrects: the commit it '
+                   "corrects, Corrected: the day) later fixes a file's text or details, dated with the same In-force day, and "
+                   'is credited only with the lines it changed.')
 REDATES = re.compile(r'^Redates:\s*([0-9a-f]{7,40})\s+(\d{4}-\d{2}-\d{2})\s*$', re.M)
 
 
@@ -107,8 +110,19 @@ def redated(repo: Path) -> dict[str, str]:
     return out
 
 
+def tax_court_reader():
+    """The Tax Court's own way of citing the Code (bare "sec. 6662(a)" under its standing note, "I.R.C. § 61"), as
+    tax-court-work/build_tc.py reads it when it builds lexifina/united-states-tax-court-caselaw."""
+    f = Path.home() / 'Documents' / 'tax-court-work' / 'build_tc.py'
+    spec = importlib.util.spec_from_file_location('build_tc', f)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m.irc_cites
+
+
 def rebuild(repo: Path, ver: dict, have: set) -> tuple[dict[str, list[dict]], dict]:
     head = git(repo, 'rev-parse', 'HEAD').strip()
+    irc = tax_court_reader() if repo.name == 'tax-court' else None
     old_rows = {}
     for n in git(repo, 'ls-tree', '-r', '--name-only', head, 'judgments').split('\n'):
         if n.endswith('.jsonl'):
@@ -123,7 +137,8 @@ def rebuild(repo: Path, ver: dict, have: set) -> tuple[dict[str, list[dict]], di
                 continue
             old_total += 1
             old_meta.setdefault(j.get('decision'), {'citation': j.get('citation'), 'name': j.get('name'), 'url': j.get('url'), 'court': j.get('court')})
-    grep = subprocess.run(['git', '-C', str(repo), 'grep', '--threads=4', '-l', '-I', '-E', '-e', PREFILTER, head, '--', 'decisions'],
+    grep = subprocess.run(['git', '-C', str(repo), 'grep', '--threads=4', '-l', '-I', '-E', '-e', PREFILTER if irc is None else
+                           PREFILTER + r'|[Ss]ec(tion)?s?\.? ?[0-9]|§|I\.R\.C', head, '--', 'decisions'],
                           capture_output=True)
     files = [l.split(':', 1)[1] for l in grep.stdout.decode('utf-8', 'replace').splitlines() if ':' in l]
     rel = relations(repo)
@@ -143,6 +158,9 @@ def rebuild(repo: Path, ver: dict, have: set) -> tuple[dict[str, list[dict]], di
             stats['undated'] += 1
             continue
         found = B.usc_cites(body, have, day, ver)
+        if irc is not None:  # the Tax Court's bare section numbers, where the US Code reader found nothing at the place
+            taken = {how for _, how in found}
+            found += [(p, how) for p, how in irc(body, have, day, ver) if how not in taken]
         if not found:
             continue
         counts = Counter(p for p, _ in found)
@@ -195,6 +213,8 @@ def main():
             else:
                 raise SystemExit(f'{repo.name}: local main {local[:10]} is not behind origin/main {remote[:10]}; left alone')
     ver = B.usc_versions(Path(a.law_repo), ref='main')
+    law_head = git(Path(a.law_repo), 'rev-parse', 'main').strip()
+    titles = sorted({int(p.split('/')[0][6:]) for p in ver if re.match(r'title-\d+/', p)})
     have = set(ver)
     overlay, st = rebuild(repo, ver, have)
     name = repo.name
@@ -213,18 +233,28 @@ def main():
             rows.sort(key=lambda x: (x['decided'], x['citation'], x['decision']))
             docs[f'judgments/{B.LAW_CORPUS}/{p[:-3]}.jsonl'] = ''.join(json.dumps(x, ensure_ascii=False, sort_keys=True) + '\n' for x in rows)
         gone = [f for f in st['old_files'] if f not in docs]
-        if not gone and all(st['old_files'].get(p) == t for p, t in docs.items()):
+        cj_text = git(repo, 'show', f"{st['head']}:corpus.json", check=False)
+        try:  # the overlay as before, read against the same titles, and the record note already right: nothing to commit
+            cj_old = json.loads(cj_text)
+            described = (cj_old.get('overlay') or {}).get('titles') == titles and 'every commit is Kind: court.' not in cj_old.get('record_note', '')
+        except ValueError:
+            described = True
+        if not gone and all(st['old_files'].get(p) == t for p, t in docs.items()) and described:
             print(json.dumps({'repo': name, 'rows': n_rows, 'unchanged': True, 'pushed': True, 'head': st['head']}), flush=True)
             return
-        cj_text = git(repo, 'show', f"{st['head']}:corpus.json", check=False)
         try:
             cj = json.loads(cj_text)
             cj['coverage'] = re.sub(r'\d+ citations of the US Code linked', f'{n_rows} citations of the US Code linked', cj.get('coverage', ''))
-            cj['overlay'] = {**(cj.get('overlay') or {}), 'rebuilt': date.today().isoformat(),
-                             'reader': 'tools/usc_cite.py: a page stamp ("USCA4") is no citation, "(a)(4)" a subsection, "§§ 1-16" a range '
-                                       'read at its two ends; a citation under an older numbering (before the title was recodified, '
+            cj['overlay'] = {**(cj.get('overlay') or {}), 'rebuilt': date.today().isoformat(), 'law_commit': law_head,
+                             'titles': titles,
+                             'reader': 'tools/usc_cite.py: a page stamp ("USCA4") is no citation, "(a)(4)" a subsection, a range '
+                                       '("§§ 101-1330", "§§ 1 through 16") links neither end (its ends are no more cited than the '
+                                       'sections between them); a citation under an older numbering (before the title was recodified, '
                                        'before the section was added, an earlier edition, "former") is not linked; one row per decision '
                                        '(decision-relations.tsv duplicates left out)'}
+            note = cj.get('record_note') or ''
+            if 'every commit is Kind: court.' in note:
+                cj['record_note'] = note.replace('every commit is Kind: court.', CORRECTION_NOTE)
             docs['corpus.json'] = json.dumps(cj, ensure_ascii=False, indent=2) + '\n'
         except ValueError:
             pass
@@ -238,8 +268,11 @@ def main():
                f'was {st["old_rows"]})\n\nPACER page stamps ("USCA4", "USCA11") are no longer read as citations, subsection '
                f'digits ("(a)(4)") no longer as sections, and a citation under an older numbering than the record\'s (a decision '
                f'before the title\'s recodification or before the section was added, an earlier edition, "former") is no longer '
-               f'linked to today\'s section. Lists, ranges ("§§ 1 through 16"), "U.S.C.S.", "U.S.C., Sec." and long forms are read. '
-               f'Each decision gives its rows once: files decision-relations.tsv names as duplicates give none.\n').encode('utf-8')
+               f'linked to today\'s section. Lists, "U.S.C.S.", "U.S.C., Sec." and long forms are read. '
+               f'Each decision gives its rows once: files decision-relations.tsv names as duplicates give none.\n\nRead against the US '
+               f'Code record at {law_head[:10]} (titles {", ".join(map(str, titles))}): title 26 is linked from this rebuild on, a '
+               f'citation of the Internal Revenue Code of 1939 (a decision before 1954-08-16, or a pre-1954 edition) left out. A '
+               f'range ("§§ 101-1330") links neither of its ends.\n').encode('utf-8')
         w = [b'commit refs/heads/main\n', b'author Lexifina <corpus@lexifina.com> %d +0000\ncommitter %s %d +0000\n' % (ts, B.COMMITTER, ts),
              b'data %d\n%s\n' % (len(msg), msg), b'from %s\n' % st['head'].encode()]
         for f in gone:

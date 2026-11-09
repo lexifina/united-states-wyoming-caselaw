@@ -94,7 +94,7 @@ _RECORD_FROM: dict = {}
 
 def usc_cites(text: str, have: set, day: str | None = None, ver: dict | None = None) -> list[tuple[str, str]]:
     """(law path, citation words) for every section of the US Code record a text cites (usc_cite.cites: a page stamp
-    "USCA4" is not a citation, "(a)(4)" is a subsection, "§§ 1-16" a range read at its two ends), leaving out a citation
+    "USCA4" is not a citation, "(a)(4)" is a subsection, "§§ 1-16" a range, whose two ends are not linked as cited sections), leaving out a citation
     under an older numbering than the record's (usc_cite.old_numbering: a decision before the title's recodification or
     before the section was added, an edition before it, "former")."""
     out = []
@@ -102,6 +102,8 @@ def usc_cites(text: str, have: set, day: str | None = None, ver: dict | None = N
     for c in UC.cites(text, exists=lambda t, s: f'title-{t}/{s}.md' in have, long_forms=True):
         p = f"title-{c['title']}/{c['section']}.md"
         if p not in have:
+            continue
+        if c['role'] != 'cited':  # a range's two ends ("§§ 101-1330") are not cited sections: no row for either
             continue
         first = ver[p][0][0] if ver and p in ver and ver[p][0] else None
         if UC.old_numbering(c, day, first, start):
@@ -162,6 +164,11 @@ def compare_text(r: dict) -> str:
     return t if t.strip() else (r.get('head_matter') or '')
 
 
+def _triples(t: str) -> set:
+    w = re.findall(r'[a-z0-9]+', t.lower())
+    return {tuple(w[i:i + 3]) for i in range(len(w) - 2)}
+
+
 def same_text(a: str, b: str) -> bool:
     """Two texts of one decision: two reporters' OCR of one opinion (difflib ratio >= 0.6 over the first 4,000
     characters) or one inside the other (the first 300 characters of either found in the other). Two different
@@ -171,6 +178,16 @@ def same_text(a: str, b: str) -> bool:
         return not a and not b
     if a[:300] in b or b[:300] in a:
         return True
+    # a fast answer from word triples where it is clear (calibrated on the deep check's 150 sampled merges: pairs under
+    # ratio 0.6 share at most 0.29 of their triples, pairs over it at least 0.056 when both are long); the character
+    # ratio, which is quadratic, only between
+    sa, sb = _triples(a[:4000]), _triples(b[:4000])
+    if len(sa) >= 50 and len(sb) >= 50:
+        j = len(sa & sb) / len(sa | sb)
+        if j >= 0.5:
+            return True
+        if j < 0.03:
+            return False
     sm = difflib.SequenceMatcher(None, a[:4000], b[:4000], autojunk=False)
     return sm.real_quick_ratio() >= 0.6 and sm.quick_ratio() >= 0.6 and sm.ratio() >= 0.6
 

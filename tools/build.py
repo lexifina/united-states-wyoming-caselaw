@@ -86,7 +86,7 @@ _RECORD_FROM: dict = {}
 
 def usc_cites(text: str, have: set, day: str | None = None, ver: dict | None = None) -> list[tuple[str, str]]:
     """(law path, citation words) for every section of the US Code record a text cites (usc_cite.cites: a page stamp
-    "USCA4" is not a citation, "(a)(4)" is a subsection, "§§ 1-16" a range read at its two ends), leaving out a citation
+    "USCA4" is not a citation, "(a)(4)" is a subsection, "§§ 1-16" a range, whose two ends are not linked as cited sections), leaving out a citation
     under an older numbering than the record's (usc_cite.old_numbering: a decision before the title's recodification or
     before the section was added, an edition before it, "former")."""
     out = []
@@ -94,6 +94,8 @@ def usc_cites(text: str, have: set, day: str | None = None, ver: dict | None = N
     for c in UC.cites(text, exists=lambda t, s: f'title-{t}/{s}.md' in have, long_forms=True):
         p = f"title-{c['title']}/{c['section']}.md"
         if p not in have:
+            continue
+        if c['role'] != 'cited':  # a range's two ends ("§§ 101-1330") are not cited sections: no row for either
             continue
         first = ver[p][0][0] if ver and p in ver and ver[p][0] else None
         if UC.old_numbering(c, day, first, start):

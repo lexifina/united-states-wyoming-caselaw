@@ -6,11 +6,11 @@
   "language": "en",
   "kind": "judgments",
   "history": "in-force",
-  "coverage": "10897 published decisions, one file each, dated the day decided: 10895 with their opinion text and 2 with CAP head matter only (CAP holds no opinion text for them); 79 citations of the US Code linked to united-states/federal/usc.",
+  "coverage": "10897 published decisions, one file each, dated the day decided: 10895 with their opinion text and 2 with CAP head matter only (CAP holds no opinion text for them); 140 citations of the US Code linked to united-states/federal/usc.",
   "history_from": "1870-05-01",
   "record_to": "2026-11-08",
   "checked_on": "2026-11-09",
-  "record_note": "Court decisions, not laws: every commit is Kind: court. In-force is the day decided. Commits before 1970 are dated 1970-01-01, a second apart; In-force holds the real day. Read from P.2d, P.3d, Wyo.. The head matter (syllabi, headnotes, counsel) is left out: it is the publisher's text, not the court's. Every decision is a published opinion (precedential_status: published); CAP records no other status. CAP is a closed archive (its last volumes are of 2018-2020): no nightly runner appends to this repo. The US Code record holds only some titles, so most statute citations are not linked.",
+  "record_note": "Court decisions, not laws: each decision is added by one Kind: court commit; a Kind: correction commit (Corrects: the commit it corrects, Corrected: the day) later fixes a file's text or details, dated with the same In-force day, and is credited only with the lines it changed. In-force is the day decided. Commits before 1970 are dated 1970-01-01, a second apart; In-force holds the real day. Read from P.2d, P.3d, Wyo.. The head matter (syllabi, headnotes, counsel) is left out: it is the publisher's text, not the court's. Every decision is a published opinion (precedential_status: published); CAP records no other status. CAP is a closed archive (its last volumes are of 2018-2020): no nightly runner appends to this repo. The US Code record holds only some titles, so most statute citations are not linked.",
   "update": "none: the Caselaw Access Project is a static archive, so no nightly runner is registered",
   "in_force_trailer": "In-force",
   "correction_trailer": "Corrected",
@@ -28,7 +28,20 @@
     "path": "judgments/united-states/federal/usc/<title>/<section>.jsonl",
     "law_corpus": "united-states/federal/usc",
     "rebuilt": "2026-11-09",
-    "reader": "tools/usc_cite.py: a page stamp (\"USCA4\") is no citation, \"(a)(4)\" a subsection, \"§§ 1-16\" a range read at its two ends; a citation under an older numbering (before the title was recodified, before the section was added, an earlier edition, \"former\") is not linked; one row per decision (decision-relations.tsv duplicates left out)"
+    "reader": "tools/usc_cite.py: a page stamp (\"USCA4\") is no citation, \"(a)(4)\" a subsection, a range (\"§§ 101-1330\", \"§§ 1 through 16\") links neither end (its ends are no more cited than the sections between them); a citation under an older numbering (before the title was recodified, before the section was added, an earlier edition, \"former\") is not linked; one row per decision (decision-relations.tsv duplicates left out)",
+    "law_commit": "f33a539ca52fde0166d681830d03e812e05d288f",
+    "titles": [
+      1,
+      3,
+      4,
+      9,
+      11,
+      13,
+      17,
+      26,
+      35,
+      39
+    ]
   },
   "decision_relations": {
     "path": "decision-relations.tsv",
