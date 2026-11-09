@@ -58,12 +58,12 @@ ADDED = {(t, str(s)): d for t, r, d in _ADDED for s in r}
 
 _SIGN = r'(?:§\s?§?|�{1,2}|[Ss]ections?(?![a-z])|[Ss]ecs?\.?(?![a-z]))'
 _NUM = r'(?>\d{1,5}(?!\d)[a-z]{0,3}(?:-\d{1,4}[a-z]{0,2})?)'
-_SUB = r'(?:\s?\((?!(?:19|20)\d\d\))[a-zA-Z0-9]{1,6}\))*'  # never a year: "(1976)" is an edition
+_SUB = r'(?:\s?\((?!(?:19|20)\d\d\))[a-zA-Z0-9]{1,6}\))*+'  # never a year: "(1976)" is an edition
 # A list's later number is not a section when a reporter, a Westlaw cite or another title follows it.
 _NOT_SECTION = r'(?!\s{0,2}U\s?\.?\s?S\s?\.?\s?C|\s+WL\b|\s+[A-Z][A-Za-z]{0,7}\.|\s+(?:Stat|Cong|Fed|Pub)\b)'
-_JOIN = r'(?:\s*,\s*(?:and\s+|or\s+|&\s*)?|\s+(?:and|or)\s+|\s*&\s*|\s+(?:through|thru|to)\s+|\s?[-–—]\s?)'
+_JOIN = r'(?>\s*,\s*(?:and\s+|or\s+|&\s*)?|\s+(?:and|or)\s+|\s*&\s*|\s+(?:through|thru|to)\s+|\s?[-–—]\s?)'
 _ITEM = _SIGN + r'?\s*' + _NUM + _NOT_SECTION + _SUB
-_REST = r'(?:' + _JOIN + _ITEM + r'){0,40}'
+_REST = r'(?:' + _JOIN + _ITEM + r'){0,40}+'  # possessive: a long list that is no citation fails at once, not by every split of its spaces
 _EDITION = r'\((?:(?:19|20)\d{2}|Supp\.?)[^()]{0,30}\)'
 USC = re.compile(
     r'(?<![\w.§])(?P<title>\d{1,2})\s{0,2}U\s?\.?\s?S\s?\.?\s?C\s?\.?(?:\s?[AS]\.?)?(?![A-Za-z0-9])'
