@@ -45,3 +45,6 @@ history (nothing is rewritten). Now 10,897 decisions.
 
 Dates in the commit history: git cannot hold dates before 1970, so a decision before 1970 is committed from 1970-01-01 noon UTC-5, a second apart.
 Read the `In-force:` trailer for the day decided, not the commit date.
+
+## Parallel-reporter copies (2026-11-09)
+10 files here are the same decision as another file here, and are now listed in `decision-relations.tsv` as `same-decision-as` the file kept: one decision printed in two reporters (an official and a regional reporter, such as 604 Pa. 242 and 985 A.2d 955), each a CAP case with its own CAP id (10), or two CAP records of one case under one citation (0). Both files are kept; the kept file is the one other rows already keep, else the official reporter's, else the earlier added; decision-index.tsv now gives the other file's citations, docket and CAP id to the kept file. A pair is matched by the same day decided, a citation, docket or name in common, and the same opinion text (head matter left out): similarity of at least 0.8 over the first 4,000 characters, or one text inside the other; orders shorter than 300 characters only with the same docket on both, and never where both give dockets with no number in common.

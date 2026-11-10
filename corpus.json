@@ -46,7 +46,7 @@
   "decision_relations": {
     "path": "decision-relations.tsv",
     "relations": {
-      "same-decision-as": "the file is the same decision as the target (same day, docket or name, and text); both are kept",
+      "same-decision-as": "the file is the same decision as the target (same day; a docket, name or citation in common; and the same text), such as another reporter's copy of it; both are kept",
       "moved-to": "the decision was routed here by mistake and is now at the target (<repo>/<path>); this file was removed"
     }
   },
